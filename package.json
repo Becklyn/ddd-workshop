@@ -1,0 +1,15 @@
+{
+  "name": "ddd-workshop",
+  "workspaces": [
+    "types",
+    "money",
+    "backend",
+    "gherkin-style-tests",
+    "ddd",
+    "ddd-nest"
+  ],
+  "scripts": {
+    "dev": "npm run start:dev -w=backend",
+    "build:backend": "npm run tsc -w=gherkin-style-tests && npm run tsc --w=types && npm run tsc --w=money && npm run tsc --w=ddd && npm run tsc --w=ddd-nest && npm run build --w=backend"
+  }
+}
