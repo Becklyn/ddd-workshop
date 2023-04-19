@@ -1,0 +1,245 @@
+version: "3.9"
+
+networks:
+  fraym:
+
+volumes:
+  s3_data:
+  postgres_data:
+
+services:
+  autoheal:
+    image: willfarrell/autoheal:latest
+    tty: true
+    container_name: autoheal
+    restart: always
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=all
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  etcd:
+    image: bitnami/etcd:latest
+    restart: unless-stopped
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+    networks:
+      - fraym
+    healthcheck:
+      test: ["CMD-SHELL","/usr/bin/curl", "http://127.0.0.1:2379/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  s3:
+    image: bitnami/minio:latest
+    restart: unless-stopped
+    environment:
+      - MINIO_ROOT_USER=root
+      - MINIO_ROOT_PASSWORD=change-me
+    networks:
+      - fraym
+    volumes:
+      - s3_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  imgproxy:
+    image: darthsim/imgproxy:latest
+    restart: unless-stopped
+    environment:
+      - IMGPROXY_MAX_SRC_RESOLUTION=50.0
+      - IMGPROXY_ALLOWED_SOURCES=s3://
+      - IMGPROXY_USE_S3=true
+      - IMGPROXY_S3_ENDPOINT=http://s3:9000
+      - AWS_ACCESS_KEY_ID=root
+      - AWS_SECRET_ACCESS_KEY=change-me
+    networks: 
+      - fraym
+    healthcheck:
+      test: [ "CMD", "imgproxy", "health" ]
+      timeout: 10s
+      interval: 10s
+      retries: 3
+
+  postgres:
+    image: bitnami/postgresql:latest
+    restart: unless-stopped
+    environment:
+      - POSTGRESQL_PASSWORD=change-me
+      - POSTGRESQL_POSTGRES_PASSWORD=change-me
+    networks:
+      - fraym
+    volumes:
+      - postgres_data:/bitnami/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  streams:
+    image: ghcr.io/fraym/streams/streams:3.4.0
+    restart: unless-stopped
+    environment:
+      - APP_ENV=development
+      - LOG_LEVEL=debug
+      - SYNC_GRPC_PORT=9000
+      - SYNC_ETCD_URL=etcd:2379
+      - SYNC_LOCK_PREFIX=streams
+      - CLIENTCHANNEL_PUBLISH_TIMEOUT=1
+      - CLIENTCHANNEL_SEND_TIMEOUT=1
+      - POSTGRES_CONNECTION=postgres://postgres:change-me@postgres:5432
+      - S3_ENDPOINT=s3:9000
+      - S3_ACCESS_KEY=root
+      - S3_SECRET_KEY=change-me
+      - S3_SSL=false
+      - S3_BUCKET=streams
+      - AUTH_SECRET=change-me
+    ports: 
+      - 3010:3000
+      - 9010:9000
+    networks:
+      - fraym
+    depends_on:
+      - postgres
+      - etcd
+      - s3
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/health || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 3
+      start_period: 4s
+
+  projections:
+    image: ghcr.io/fraym/projections/projections:0.6.1
+    restart: unless-stopped
+    environment:
+      - APP_ENV=development
+      - LOG_LEVEL=debug
+      - SYNC_GRPC_PORT=9000
+      - SYNC_ETCD_URL=etcd:2379
+      - SYNC_LOCK_PREFIX=projections
+      - POSTGRES_CONNECTION=postgres://postgres:change-me@postgres:5432
+      - STREAMS_CLIENT_ADDRESS=streams:9000
+      - STREAMS_CLIENT_KEEPALIVE_INTERVAL=40
+      - STREAMS_CLIENT_KEEPALIVE_TIMEOUT=3
+      - STREAMS_CLIENT_SEND_TIMEOUT=1
+      - STREAMS_CLIENT_GROUP_ID=projections
+      - AUTH_SECRET=change-me
+      - MANAGEMENT_API_TOKEN=change-me
+    ports: 
+      - 3011:3000
+      - 9011:9000
+    networks:
+      - fraym
+    depends_on:
+      - streams
+      - postgres
+      - etcd
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/health || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 3
+      start_period: 4s
+
+  crud:
+    image: ghcr.io/fraym/crud/crud:0.5.3
+    restart: unless-stopped
+    environment:
+      - APP_ENV=development
+      - LOG_LEVEL=debug
+      - POSTGRES_CONNECTION=postgres://postgres:change-me@postgres:5432
+      - STREAMS_CLIENT_ADDRESS=streams:9000
+      - STREAMS_CLIENT_KEEPALIVE_INTERVAL=40
+      - STREAMS_CLIENT_KEEPALIVE_TIMEOUT=3
+      - STREAMS_CLIENT_SEND_TIMEOUT=1
+      - STREAMS_CLIENT_GROUP_ID=crud
+      - PROJECTIONS_CLIENT_ADDRESS=projections:9000
+      - PROJECTIONS_CLIENT_KEEPALIVE_INTERVAL=40
+      - PROJECTIONS_CLIENT_KEEPALIVE_TIMEOUT=3
+      - PROJECTIONS_CLIENT_SEND_TIMEOUT=1
+      - S3_ENDPOINT=s3:9000
+      - S3_ACCESS_KEY=root
+      - S3_SECRET_KEY=change-me
+      - S3_SSL=false
+      - S3_BUCKET=crud
+      - IMGPROXY_URL=http://imgproxy:8080
+      - AUTH_SECRET=change-me
+      - MANAGEMENT_API_TOKEN=change-me
+      - HTTP_REQUEST_BODY_LIMIT=10
+    ports: 
+      - 3012:3000
+      - 9012:9000
+    networks:
+      - fraym
+    depends_on:
+      - projections
+      - streams
+      - imgproxy
+      - s3
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/health || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 3
+      start_period: 4s
+
+  auth:
+    image: ghcr.io/fraym/auth/auth:0.5.0
+    restart: unless-stopped
+    environment:
+      - APP_ENV=development
+      - LOG_LEVEL=debug
+      - MANAGEMENT_API_TOKEN=change-me
+      - AUTH_SECRET=change-me
+      - AUTH_SECRET_INITIAL_PW=change-me
+      - CRUD_CLIENT_ADDRESS=crud:9000
+      - STREAMS_CLIENT_ADDRESS=streams:9000
+      - STREAMS_CLIENT_GROUP_ID=auth
+    ports: 
+      - 3013:3000
+      - 9013:9000
+    networks:
+      - fraym
+    depends_on:
+      - crud
+      - streams
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/health || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 3
+      start_period: 4s
+
+  admin-ui:
+    image: ghcr.io/fraym/admin-ui/adminui:0.3.3
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=debug
+      - PORT=4000
+      - APP_URL=http://localhost:4000
+      - APP_SECRET=change-me
+      - AUTH_ACTIVE=true
+      - AUTH_SERVICE_URL=http://auth:3000
+      - AUTH_SERVICE_WS_URL=ws://auth:3000
+      - CRUD_ACTIVE=true
+      - CRUD_SERVICE_URL=http://crud:3000
+      - CRUD_SERVICE_WS_URL=ws://crud:3000
+      - PROJECTIONS_ACTIVE=true
+      - PROJECTIONS_SERVICE_URL=http://projections:3000
+      - PROJECTIONS_SERVICE_WS_URL=ws://projections:3000
+      - STREAMS_ACTIVE=true
+      - STREAMS_SERVICE_URL=http://streams:3000
+      - STREAMS_SERVICE_WS_URL=ws://streams:3000
+    ports: 
+      - 4040:4000
+    networks:
+      - fraym
