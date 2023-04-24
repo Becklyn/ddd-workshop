@@ -4,12 +4,15 @@ import { PositiveInteger } from "@becklyn/types";
 import { EventStore } from "@becklyn/ddd-nest";
 import { ContingentId } from "@EventOrganizing/Domain/Contingent/ContingentId";
 import { ContingentRepository } from "@EventOrganizing/Domain/Contingent/ContingentRepository";
+import { Command } from "@becklyn/ddd";
 
-export class IncreaseContingentCommand {
+export class IncreaseContingentCommand extends Command {
     public constructor(
         public readonly contingentId: ContingentId,
         public readonly quantity: PositiveInteger
-    ) {}
+    ) {
+        super();
+    }
 }
 
 @Injectable()

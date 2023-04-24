@@ -3,9 +3,12 @@ import { Inject, Injectable } from "@nestjs/common";
 import { EventStore } from "@becklyn/ddd-nest";
 import { ContingentId } from "@EventOrganizing/Domain/Contingent/ContingentId";
 import { ContingentRepository } from "@EventOrganizing/Domain/Contingent/ContingentRepository";
+import { Command } from "@becklyn/ddd";
 
-export class SetContingentToUnlimitedContingentCommand {
-    public constructor(public readonly contingentId: ContingentId) {}
+export class SetContingentToUnlimitedContingentCommand extends Command {
+    public constructor(public readonly contingentId: ContingentId) {
+        super();
+    }
 }
 
 @Injectable()

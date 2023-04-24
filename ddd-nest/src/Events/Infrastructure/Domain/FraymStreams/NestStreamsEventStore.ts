@@ -47,6 +47,8 @@ export class NestStreamsEventStore extends EventStore {
 
         await eventStore.client.subscribe([options.topic]);
 
+        console.log(` Subscribed to event stream topic '${options.topic}'`);
+
         return eventStore;
     }
 

@@ -21,6 +21,8 @@ export class StreamsService implements OnApplicationShutdown {
             ackTimeout,
         });
 
+        console.log(`Connected to event stream server '${serverAddress}' group '${groupId}'`);
+
         return new StreamsService(client, serverAddress, groupId, ackTimeout);
     }
 

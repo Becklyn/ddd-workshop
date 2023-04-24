@@ -11,7 +11,7 @@
         "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
         "format-check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
         "start": "nest start",
-        "start:dev": "concurrently --kill-others npm:start:dev:server npm:start:dev:typesfactory",
+        "start:dev": "concurrently --kill-others npm:start:dev:server",
         "start:dev:server": "nest start --watch",
         "start:debug": "nest start --debug --watch",
         "start:prod": "node dist/main",

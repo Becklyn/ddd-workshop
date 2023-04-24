@@ -43,7 +43,16 @@ export class Contingent extends AggregateRoot<
         return self;
     };
 
-    public increase = (quantity: PositiveInteger): void => {
+    protected applyContingentInitialized(event: ContingentInitialized): void {
+        this.state = {
+            id: event.aggregateId,
+            createdAt: event.raisedAt,
+            eventId: event.eventId,
+            quantity: event.quantity,
+        };
+    }
+
+    public increase(quantity: PositiveInteger): void {
         if (this.isUnlimited) {
             throw new IncreaseUnlimitedContingentError(this.id);
         } else {
@@ -55,13 +64,13 @@ export class Contingent extends AggregateRoot<
         });
 
         this.raiseAndApply(increased);
-    };
+    }
 
-    protected applyContingentIncreased = (event: ContingentIncreased): void => {
+    protected applyContingentIncreased(event: ContingentIncreased): void {
         this.state.quantity = this.state.quantity.map(quantity => quantity + event.quantity);
-    };
+    }
 
-    public reduce = (quantity: PositiveInteger): void => {
+    public reduce(quantity: PositiveInteger): void {
         if (this.isUnlimited) {
             throw new ReduceUnlimitedContingentError(this.id);
         } else {
@@ -80,13 +89,13 @@ export class Contingent extends AggregateRoot<
         });
 
         this.raiseAndApply(reduced);
-    };
+    }
 
-    protected applyContingentReduced = (event: ContingentReduced): void => {
+    protected applyContingentReduced(event: ContingentReduced): void {
         this.state.quantity = this.state.quantity.map(quantity => quantity - event.quantity);
-    };
+    }
 
-    public setToUnlimited = (): void => {
+    public setToUnlimited(): void {
         if (this.isUnlimited) {
             return;
         }
@@ -94,12 +103,12 @@ export class Contingent extends AggregateRoot<
         this.raiseAndApply(
             new ContingentSetToUnlimited(Contingent.nextEventId(), new Date(), this.id, {})
         );
-    };
+    }
 
-    protected applyContingentSetToUnlimited = (event: ContingentSetToUnlimited): void => {
+    protected applyContingentSetToUnlimited(event: ContingentSetToUnlimited): void {
         event;
         this.state.quantity = Optional.null();
-    };
+    }
 
     public limit(quantity: PositiveInteger): void {
         if (this.isLimited) {
@@ -113,6 +122,10 @@ export class Contingent extends AggregateRoot<
                 quantity: quantity,
             })
         );
+    }
+
+    protected applyContingentLimited(event: ContingentLimited): void {
+        this.state.quantity = Optional.fromValue(event.quantity);
     }
 }
 
