@@ -1,0 +1,24 @@
+type Contingent
+@upsertOn(
+    on: {
+        eventTypes: [
+            "ContingentIncreased",
+            "ContingentInitialized",
+            "ContingentLimited",
+            "ContingentReduced",
+            "ContingentSetToUnlimited",
+            "ContingentSold"
+        ]
+    }
+    identifyBy: { payload: ["aggregateId"] }
+) {
+    contingentId: ID! @identifier
+    eventId: ID! @index @from(events: ["ContingentInitialized"], value: "payload.eventId")
+    quantity: Int
+        @from(events: ["ContingentIncreased"], value: "projection.quantity + payload.quantity")
+        @from(events: ["ContingentInitialized", "ContingentLimited"], value: "payload.quantity")
+        @from(events: ["ContingentReduced"], value: "projection.quantity - payload.quantity")
+        @from(events: ["ContingentSetToUnlimited"], value: "null")
+    soldQuantity: Int! @default(value: 0)
+        @from(events: ["ContingentSold"], value: "projection.soldQuantity + payload.quantity")
+}

@@ -1,0 +1,14 @@
+type Event @crudType {
+    name: String!
+    location: String!
+    timestampStart: DateTime! @index
+    timestampEnd: DateTime! @index
+    description: String
+}
+
+type EventTicketType @crudType {
+    event: ID! @index
+    name: String!
+    price: Int!
+    description: String
+}

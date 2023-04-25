@@ -25,11 +25,23 @@ export class InitializeContingentCommandHandler
     implements ICommandHandler<InitializeContingentCommand>
 {
     public constructor(
+        @Inject(ContingentRepository)
+        private readonly contingentRepository: ContingentRepository,
         @Inject(EventStore)
         private readonly eventStore: EventStore
     ) {}
 
     public async execute(command: InitializeContingentCommand): Promise<void> {
+        let existingContingent: Contingent | null = null;
+
+        try {
+            existingContingent = await this.contingentRepository.findOneByEventId(command.eventId);
+        } catch (e) {}
+
+        if (existingContingent) {
+            throw new Error("Contingent already exists for this event");
+        }
+
         const contingent = Contingent.initialize(
             command.contingentId,
             command.eventId,

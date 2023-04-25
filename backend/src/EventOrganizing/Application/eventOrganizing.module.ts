@@ -11,6 +11,9 @@ import { LimitContingentCommandHandler } from "@EventOrganizing/Application/Cont
 import { ReduceContingentCommandHandler } from "@EventOrganizing/Application/Contingent/ReduceContingent";
 import { SetContingentToUnlimitedContingentCommand } from "@EventOrganizing/Application/Contingent/SetContingentToUnlimited";
 import { EventOrganizingController } from "@EventOrganizing/Infrastructure/Delivery/Web/EventOrganizingController";
+import { GetContingentDataForEvent } from "@EventOrganizing/Application/Contingent/GetContingentDataForEvent";
+import { SellContingentCommandHandler } from "@EventOrganizing/Application/Contingent/SellContingent";
+import { TestDataBootstrapper } from "@EventOrganizing/Infrastructure/Delivery/Nest/TestDataBootstrapper";
 
 @Module({
     imports: [CqrsModule],
@@ -24,9 +27,16 @@ import { EventOrganizingController } from "@EventOrganizing/Infrastructure/Deliv
         LimitContingentCommandHandler,
         ReduceContingentCommandHandler,
         SetContingentToUnlimitedContingentCommand,
+        SellContingentCommandHandler,
 
         /* Application services */
         InitializeContingent,
+
+        /* Queries */
+        GetContingentDataForEvent,
+
+        /* Other */
+        TestDataBootstrapper,
     ],
     controllers: [EventOrganizingController],
 })
