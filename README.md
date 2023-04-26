@@ -33,6 +33,16 @@ Before you start the dev server the first time, please make sure to build all dp
 npm run build:backend
 ```
 
+Run fraym migrations (from within the `/fraym` folder):
+
+```sh
+npx @fraym/crud@latest
+```
+
+```sh
+npx @fraym/projections@latest
+```
+
 Run the dev server:
 
 ```sh
